@@ -6,6 +6,7 @@ import json
 import dateutil.parser
 import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from sqlalchemy import func
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -74,7 +75,7 @@ class Artist(db.Model):
 class Show(db.Model):
     __tablename__ = 'Show'
     venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id', ondelete='CASCADE'), primary_key=True)
-    artist_id = db.Column(db.Integet, db.ForeignKey('Artist.id', ondelete='CASCADE'), primary_key=True)
+    artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id', ondelete='CASCADE'), primary_key=True)
     start_time = db.Column(db.DateTime, nullable=False)
     venue = db.relationship('Venue', back_populates='artists')
     artist = db.relationship('Artist', back_populates='venues')
@@ -100,7 +101,6 @@ app.jinja_env.filters['datetime'] = format_datetime
 def index():
   return render_template('pages/home.html')
 
-
 #  Venues
 #  ----------------------------------------------------------------
 
@@ -108,28 +108,12 @@ def index():
 def venues():
   # TODO: replace with real venues data.
   #       num_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
-  return render_template('pages/venues.html', areas=data);
+  data = []
+  venues = Venue.query.with_entities(func.count().label('num_upcoming_shows'), Venue.id.label('id'), Venue.city.label('city'), Venue.state.label('state'), Venue.name.label('name')).join(Show, (Show.venue_id == Venue.id) & (Show.start_time > datetime.now())).group_by(Venue.id).all()
+
+  
+
+  return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
